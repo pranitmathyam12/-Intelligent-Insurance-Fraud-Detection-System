@@ -1,0 +1,126 @@
+{
+	"info": {
+		"_postman_id": "2266a7d9-2ed3-4d46-8bf8-5242756adec9",
+		"name": "LLM with Knowledge Graph DB",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "49925632",
+		"_collection_link": "https://belide-aakash2018-8578403.postman.co/workspace/c3e6f48a-7e40-486a-835e-b43ae4e735e9/collection/49925632-2266a7d9-2ed3-4d46-8bf8-5242756adec9?action=share&source=collection_link&creator=49925632"
+	},
+	"item": [
+		{
+			"name": "Classify and Extract",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "formdata",
+					"formdata": [
+						{
+							"key": "file",
+							"type": "file",
+							"src": "/Users/aakashbelide/Aakash/Higher Studies/Course/Sem-3/DAMG 7374/insurance-fraud-detection-graph-backend/Data_Prep_Code/Claim_Documents_Test/TXN_TEST_MOBILE_FRAUD_mobile_complete.pdf"
+						}
+					]
+				},
+				"url": {
+					"raw": "{{baseURL}}/v1/extract",
+					"host": [
+						"{{baseURL}}"
+					],
+					"path": [
+						"v1",
+						"extract"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Injest to Graph and Detect Fraud",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"doc_type\": \"mobile\",\n    \"classification_source\": \"auto\",\n    \"model\": \"gemini-2.5-flash\",\n    \"result\": {\n        \"company_name\": \"PREMIER INSURANCE GROUP\",\n        \"transaction_id\": \"TXN_TEST_MOBILE_FRAUD\",\n        \"policyholder_info\": {\n            \"policy_number\": \"PLC00019012\",\n            \"customer_name\": \"David Lee\",\n            \"insurance_type\": \"Mobile\",\n            \"customer_id\": \"A00011234\"\n        },\n        \"claim_summary\": {\n            \"amount\": \"$800.00\",\n            \"reported_date\": \"January 16, 2025\"\n        },\n        \"device_details\": {\n            \"device_model\": \"N/A\",\n            \"imei\": \"N/A\",\n            \"loss_type\": \"Total Loss\"\n        },\n        \"required_documents\": {\n            \"Proof of Purchase\": true,\n            \"Photos of Damage\": true,\n            \"Police Report\": true\n        },\n        \"notes\": \"The claim is for a total loss mobile device with a reported amount of $800.00.\",\n        \"summary\": \"This is a mobile device insurance claim for policyholder David Lee (Policy PLC00019012, Customer ID A00011234) with a reported loss date of January 16, 2025, and a claim amount of $800.00. The incident is categorized as a total loss. Required documents including proof of purchase, photos of damage, and a police report are indicated as needed.\"\n    },\n    \"usage\": {\n        \"input_tokens\": 853,\n        \"output_tokens\": 357,\n        \"total_tokens\": 1210\n    },\n    \"cost_estimate\": {\n        \"input_tokens\": 853,\n        \"output_tokens\": 357,\n        \"total_tokens\": 1210,\n        \"input_cost_usd\": 0.000256,\n        \"output_cost_usd\": 0.000893,\n        \"total_cost_usd\": 0.001148\n    }\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{baseURL}}/v1/fraud/ingest_to_graph",
+					"host": [
+						"{{baseURL}}"
+					],
+					"path": [
+						"v1",
+						"fraud",
+						"ingest_to_graph"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "LLM Fraud Analysis",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"success\": true,\n    \"claim_id\": \"TXN_TEST_MOBILE_FRAUD\",\n    \"nodes_created\": 2,\n    \"relationships_created\": 1,\n    \"is_fraudulent\": true,\n    \"fraud_score\": 0.3,\n    \"detected_patterns\": [\n        {\n            \"pattern_type\": \"Asset Recycling (Hard Fraud)\",\n            \"confidence\": \"HIGH\",\n            \"evidence\": [\n                \"Device N/A has been claimed 1 times before\",\n                \"Previous claims: TXN_TEST_MOBILE_CLEAN\"\n            ],\n            \"related_entities\": {\n                \"asset\": \"N/A\",\n                \"asset_type\": \"Device\",\n                \"other_claims\": 1\n            }\n        }\n    ],\n    \"graph_summary\": {\n        \"total_claims\": 10003,\n        \"connected_entities\": {\n            \"Person\": 1,\n            \"Policy\": 1,\n            \"Asset\": 1\n        }\n    },\n    \"original_claim_data\": {\n        \"doc_type\": \"mobile\",\n        \"classification_source\": \"auto\",\n        \"model\": \"gemini-2.5-flash\",\n        \"result\": {\n            \"company_name\": \"PREMIER INSURANCE GROUP\",\n            \"transaction_id\": \"TXN_TEST_MOBILE_FRAUD\",\n            \"policyholder_info\": {\n                \"policy_number\": \"PLC00019012\",\n                \"customer_name\": \"David Lee\",\n                \"insurance_type\": \"Mobile\",\n                \"customer_id\": \"A00011234\"\n            },\n            \"claim_summary\": {\n                \"amount\": \"$800.00\",\n                \"reported_date\": \"January 16, 2025\"\n            },\n            \"device_details\": {\n                \"device_model\": \"N/A\",\n                \"imei\": \"N/A\",\n                \"loss_type\": \"Total Loss\"\n            },\n            \"required_documents\": {\n                \"Proof of Purchase\": true,\n                \"Photos of Damage\": true,\n                \"Police Report\": true\n            },\n            \"notes\": \"The claim is for a total loss mobile device with a reported amount of $800.00.\",\n            \"summary\": \"This is a mobile device insurance claim for policyholder David Lee (Policy PLC00019012, Customer ID A00011234) with a reported loss date of January 16, 2025, and a claim amount of $800.00. The incident is categorized as a total loss. Required documents including proof of purchase, photos of damage, and a police report are indicated as needed.\"\n        },\n        \"usage\": {\n            \"input_tokens\": 853,\n            \"output_tokens\": 357,\n            \"total_tokens\": 1210\n        },\n        \"cost_estimate\": {\n            \"input_tokens\": 853,\n            \"output_tokens\": 357,\n            \"total_tokens\": 1210,\n            \"input_cost_usd\": 0.000256,\n            \"output_cost_usd\": 0.000893,\n            \"total_cost_usd\": 0.001148\n        }\n    }\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{baseURL}}/v1/fraud/analyze",
+					"host": [
+						"{{baseURL}}"
+					],
+					"path": [
+						"v1",
+						"fraud",
+						"analyze"
+					]
+				}
+			},
+			"response": []
+		}
+	],
+	"event": [
+		{
+			"listen": "prerequest",
+			"script": {
+				"type": "text/javascript",
+				"packages": {},
+				"requests": {},
+				"exec": [
+					""
+				]
+			}
+		},
+		{
+			"listen": "test",
+			"script": {
+				"type": "text/javascript",
+				"packages": {},
+				"requests": {},
+				"exec": [
+					""
+				]
+			}
+		}
+	],
+	"variable": [
+		{
+			"key": "baseURL",
+			"value": "",
+			"type": "default"
+		}
+	]
+}

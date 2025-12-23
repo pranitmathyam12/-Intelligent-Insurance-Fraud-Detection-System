@@ -1,0 +1,442 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto space-y-6">
+    <!-- Header -->
+    <div class="glass-card rounded-2xl p-6">
+        <div class="flex items-center justify-between">
+            <div>
+                <h1 class="text-3xl font-bold text-slate-900 dark:text-white mb-2">Model Evaluation</h1>
+                <p class="text-slate-600 dark:text-slate-400">Analyze fraud detection performance across claim samples
+                </p>
+            </div>
+            <button id="runEvaluationBtn"
+                class="px-6 py-3 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-bold shadow-lg hover:shadow-xl transition-all transform hover:-translate-y-0.5">
+                <i class="fa-solid fa-play mr-2"></i>
+                Run Evaluation
+            </button>
+        </div>
+    </div>
+
+    <!-- Sample Size Selector -->
+    <div class="glass-card rounded-xl p-4">
+        <label class="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2 block">Sample Size:</label>
+        <div class="flex gap-3">
+            <button
+                class="sample-size-btn px-4 py-2 rounded-lg bg-slate-200 dark:bg-slate-700 hover:bg-blue-500 hover:text-white transition-colors"
+                data-size="300">300 Claims</button>
+            <button class="sample-size-btn px-4 py-2 rounded-lg bg-blue-500 text-white" data-size="500">500
+                Claims</button>
+        </div>
+    </div>
+
+    <!-- Loading State -->
+    <div id="evaluationLoading" class="hidden glass-card rounded-2xl p-12 text-center">
+        <div class="relative w-24 h-24 mx-auto mb-6">
+            <div class="absolute inset-0 rounded-full border-4 border-slate-200 dark:border-slate-800"></div>
+            <div class="absolute inset-0 rounded-full border-4 border-t-blue-500 animate-spin"></div>
+        </div>
+        <h3 class="text-xl font-bold text-slate-900 dark:text-white mb-2">Running Evaluation</h3>
+        <p class="text-slate-600 dark:text-slate-400">Processing <span id="evalSampleSize">500</span> claims...</p>
+        <p class="text-sm text-slate-500 dark:text-slate-500 mt-2">This may take 30-60 seconds</p>
+    </div>
+
+    <!-- Results Container -->
+    <div id="evaluationResults" class="hidden space-y-6">
+
+        <!-- Summary Metrics -->
+        <div class="grid grid-cols-4 gap-4">
+            <div class="glass-card rounded-xl p-6 text-center">
+                <i class="fa-solid fa-file-invoice text-3xl text-blue-500 mb-3"></i>
+                <p class="text-3xl font-bold text-slate-900 dark:text-white" id="metric-total">0</p>
+                <p class="text-sm text-slate-600 dark:text-slate-400">Claims Evaluated</p>
+            </div>
+            <div class="glass-card rounded-xl p-6 text-center">
+                <i class="fa-solid fa-triangle-exclamation text-3xl text-red-500 mb-3"></i>
+                <p class="text-3xl font-bold text-red-600 dark:text-red-400" id="metric-fraud">0</p>
+                <p class="text-sm text-slate-600 dark:text-slate-400">Fraud Detected</p>
+            </div>
+            <div class="glass-card rounded-xl p-6 text-center">
+                <i class="fa-solid fa-percent text-3xl text-purple-500 mb-3"></i>
+                <p class="text-3xl font-bold text-purple-600 dark:text-purple-400" id="metric-rate">0%</p>
+                <p class="text-sm text-slate-600 dark:text-slate-400">Fraud Rate</p>
+            </div>
+            <div class="glass-card rounded-xl p-6 text-center">
+                <i class="fa-solid fa-chart-line text-3xl text-emerald-500 mb-3"></i>
+                <p class="text-3xl font-bold text-emerald-600 dark:text-emerald-400" id="metric-avg">0</p>
+                <p class="text-sm text-slate-600 dark:text-slate-400">Avg Fraud Score</p>
+            </div>
+        </div>
+
+        <!-- Charts Row 1 -->
+        <div class="grid grid-cols-2 gap-6">
+            <!-- Fraud Score Distribution -->
+            <div class="glass-card rounded-xl p-6">
+                <h3 class="text-lg font-bold text-slate-900 dark:text-white mb-4 flex items-center gap-2">
+                    <i class="fa-solid fa-chart-bar text-blue-500"></i>
+                    Fraud Score Distribution
+                </h3>
+                <canvas id="scoreDistChart"></canvas>
+            </div>
+
+            <!-- Fraud vs Legitimate -->
+            <div class="glass-card rounded-xl p-6">
+                <h3 class="text-lg font-bold text-slate-900 dark:text-white mb-4 flex items-center gap-2">
+                    <i class="fa-solid fa-chart-pie text-purple-500"></i>
+                    Fraud vs Legitimate
+                </h3>
+                <canvas id="fraudPieChart"></canvas>
+            </div>
+        </div>
+
+        <!-- Charts Row 2 -->
+        <div class="grid grid-cols-2 gap-6">
+            <!-- Pattern Detection -->
+            <div class="glass-card rounded-xl p-6">
+                <h3 class="text-lg font-bold text-slate-900 dark:text-white mb-4 flex items-center gap-2">
+                    <i class="fa-solid fa-magnifying-glass-chart text-red-500"></i>
+                    Detected Fraud Patterns
+                </h3>
+                <canvas id="patternChart"></canvas>
+            </div>
+
+            <!-- Risk Level Distribution -->
+            <div class="glass-card rounded-xl p-6">
+                <h3 class="text-lg font-bold text-slate-900 dark:text-white mb-4 flex items-center gap-2">
+                    <i class="fa-solid fa-layer-group text-emerald-500"></i>
+                    Risk Level Distribution
+                </h3>
+                <canvas id="riskLevelChart"></canvas>
+            </div>
+        </div>
+
+        <!-- Top Risk Claims Table -->
+        <div class="glass-card rounded-xl p-6">
+            <h3 class="text-lg font-bold text-slate-900 dark:text-white mb-4 flex items-center gap-2">
+                <i class="fa-solid fa-ranking-star text-yellow-500"></i>
+                Top 20 Highest Risk Claims
+            </h3>
+            <div class="overflow-x-auto">
+                <table class="w-full text-sm">
+                    <thead class="border-b border-slate-200 dark:border-slate-700">
+                        <tr class="text-left">
+                            <th class="p-3 text-slate-600 dark:text-slate-400">Rank</th>
+                            <th class="p-3 text-slate-600 dark:text-slate-400">Claim ID</th>
+                            <th class="p-3 text-slate-600 dark:text-slate-400">Customer</th>
+                            <th class="p-3 text-slate-600 dark:text-slate-400">Amount</th>
+                            <th class="p-3 text-slate-600 dark:text-slate-400">Risk Score</th>
+                            <th class="p-3 text-slate-600 dark:text-slate-400">Patterns</th>
+                            <th class="p-3 text-slate-600 dark:text-slate-400">Recommendation</th>
+                        </tr>
+                    </thead>
+                    <tbody id="topClaimsTable" class="text-slate-700 dark:text-slate-300">
+                        <!-- Populated by JavaScript -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Pattern Details -->
+        <div class="glass-card rounded-xl p-6">
+            <h3 class="text-lg font-bold text-slate-900 dark:text-white mb-4 flex items-center gap-2">
+                <i class="fa-solid fa-shield-halved text-orange-500"></i>
+                Pattern Detection Summary
+            </h3>
+            <div id="patternDetails" class="space-y-4">
+                <!-- Populated by JavaScript -->
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script>
+    let selectedSampleSize = 500;
+    let charts = {};
+
+    // Sample size selector
+    document.querySelectorAll('.sample-size-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            document.querySelectorAll('.sample-size-btn').forEach(b => {
+                b.classList.remove('bg-blue-500', 'text-white');
+                b.classList.add('bg-slate-200', 'dark:bg-slate-700');
+            });
+            btn.classList.add('bg-blue-500', 'text-white');
+            btn.classList.remove('bg-slate-200', 'dark:bg-slate-700');
+            selectedSampleSize = parseInt(btn.dataset.size);
+        });
+    });
+
+    // Run Evaluation
+    document.getElementById('runEvaluationBtn').addEventListener('click', async () => {
+        const loadingDiv = document.getElementById('evaluationLoading');
+        const resultsDiv = document.getElementById('evaluationResults');
+
+        // Show loading
+        loadingDiv.classList.remove('hidden');
+        resultsDiv.classList.add('hidden');
+        document.getElementById('evalSampleSize').textContent = selectedSampleSize;
+
+        try {
+            const response = await fetch('/api/evaluate', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ sample_size: selectedSampleSize })
+            });
+
+            const data = await response.json();
+
+            if (data.error) {
+                throw new Error(data.error);
+            }
+
+            // Hide loading, show results
+            loadingDiv.classList.add('hidden');
+            resultsDiv.classList.remove('hidden');
+
+            // Populate data
+            populateEvaluationResults(data);
+
+        } catch (err) {
+            console.error('Evaluation failed:', err);
+            alert(`Evaluation failed: ${err.message}`);
+            loadingDiv.classList.add('hidden');
+        }
+    });
+
+    function populateEvaluationResults(data) {
+        // Update metrics
+        document.getElementById('metric-total').textContent = data.total_claims_evaluated;
+        document.getElementById('metric-fraud').textContent = data.fraud_detected;
+        document.getElementById('metric-rate').textContent = data.fraud_rate.toFixed(1) + '%';
+        document.getElementById('metric-avg').textContent = data.avg_fraud_score.toFixed(1);
+
+        // Destroy old charts
+        Object.values(charts).forEach(chart => chart.destroy());
+        charts = {};
+
+        // Chart 1: Score Distribution (Histogram)
+        const scoreCtx = document.getElementById('scoreDistChart').getContext('2d');
+        charts.scoreDist = new Chart(scoreCtx, {
+            type: 'bar',
+            data: {
+                labels: Object.keys(data.score_distribution),
+                datasets: [{
+                    label: 'Number of Claims',
+                    data: Object.values(data.score_distribution),
+                    backgroundColor: 'rgba(59, 130, 246, 0.7)',
+                    borderColor: 'rgba(59, 130, 246, 1)',
+                    borderWidth: 2
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: true,
+                plugins: {
+                    legend: { display: false }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: { color: '#94a3b8' },
+                        grid: { color: 'rgba(148, 163, 184, 0.1)' }
+                    },
+                    x: {
+                        ticks: { color: '#94a3b8' },
+                        grid: { display: false }
+                    }
+                }
+            }
+        });
+
+        // Chart 2: Fraud Pie Chart
+        const pieCtx = document.getElementById('fraudPieChart').getContext('2d');
+        const legitimate = data.total_claims_evaluated - data.fraud_detected;
+        charts.fraudPie = new Chart(pieCtx, {
+            type: 'doughnut',
+            data: {
+                labels: ['Fraudulent', 'Legitimate'],
+                datasets: [{
+                    data: [data.fraud_detected, legitimate],
+                    backgroundColor: [
+                        'rgba(239, 68, 68, 0.7)',
+                        'rgba(34, 197, 94, 0.7)'
+                    ],
+                    borderColor: [
+                        'rgba(239, 68, 68, 1)',
+                        'rgba(34, 197, 94, 1)'
+                    ],
+                    borderWidth: 2
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: true,
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: { color: '#94a3b8', padding: 15 }
+                    }
+                }
+            }
+        });
+
+        // Chart 3: Pattern Detection
+        const patternCtx = document.getElementById('patternChart').getContext('2d');
+        const patternLabels = data.pattern_summary.map(p => p.pattern_name);
+        const patternCounts = data.pattern_summary.map(p => p.cases_found);
+        const patternColors = data.pattern_summary.map(p => {
+            if (p.risk_level === 'CRITICAL') return 'rgba(239, 68, 68, 0.7)';
+            if (p.risk_level === 'HIGH') return 'rgba(249, 115, 22, 0.7)';
+            if (p.risk_level === 'MEDIUM') return 'rgba(234, 179, 8, 0.7)';
+            return 'rgba(59, 130, 246, 0.7)';
+        });
+
+        charts.pattern = new Chart(patternCtx, {
+            type: 'bar',
+            data: {
+                labels: patternLabels,
+                datasets: [{
+                    label: 'Cases Detected',
+                    data: patternCounts,
+                    backgroundColor: patternColors,
+                    borderWidth: 0
+                }]
+            },
+            options: {
+                indexAxis: 'y',
+                responsive: true,
+                maintainAspectRatio: true,
+                plugins: {
+                    legend: { display: false }
+                },
+                scales: {
+                    x: {
+                        beginAtZero: true,
+                        ticks: { color: '#94a3b8' },
+                        grid: { color: 'rgba(148, 163, 184, 0.1)' }
+                    },
+                    y: {
+                        ticks: { color: '#94a3b8' },
+                        grid: { display: false }
+                    }
+                }
+            }
+        });
+
+        // Chart 4: Risk Level Distribution
+        const riskCtx = document.getElementById('riskLevelChart').getContext('2d');
+        charts.riskLevel = new Chart(riskCtx, {
+            type: 'bar',
+            data: {
+                labels: Object.keys(data.risk_level_distribution),
+                datasets: [{
+                    label: 'Number of Claims',
+                    data: Object.values(data.risk_level_distribution),
+                    backgroundColor: [
+                        'rgba(34, 197, 94, 0.7)',   // Low - Green
+                        'rgba(234, 179, 8, 0.7)',   // Medium - Yellow
+                        'rgba(239, 68, 68, 0.7)'    // High - Red
+                    ],
+                    borderWidth: 2,
+                    borderColor: [
+                        'rgba(34, 197, 94, 1)',
+                        'rgba(234, 179, 8, 1)',
+                        'rgba(239, 68, 68, 1)'
+                    ]
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: true,
+                plugins: {
+                    legend: { display: false }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: { color: '#94a3b8' },
+                        grid: { color: 'rgba(148, 163, 184, 0.1)' }
+                    },
+                    x: {
+                        ticks: { color: '#94a3b8' },
+                        grid: { display: false }
+                    }
+                }
+            }
+        });
+
+        // Populate Top Claims Table
+        const tableBody = document.getElementById('topClaimsTable');
+        tableBody.innerHTML = data.top_risk_claims.map((claim, index) => {
+            const scoreColor = claim.fraud_score >= 70 ? 'text-red-600 dark:text-red-400' :
+                claim.fraud_score >= 40 ? 'text-yellow-600 dark:text-yellow-400' :
+                    'text-green-600 dark:text-green-400';
+
+            const recColor = claim.recommendation === 'REJECT' ? 'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-300' :
+                claim.recommendation === 'MANUAL_REVIEW' ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-300' :
+                    'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-300';
+
+            return `
+                <tr class="border-b border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800/50">
+                    <td class="p-3 font-bold text-slate-900 dark:text-white">#${index + 1}</td>
+                    <td class="p-3 font-mono text-xs">${claim.claim_id || 'N/A'}</td>
+                    <td class="p-3">${claim.customer_name || 'N/A'}</td>
+                    <td class="p-3">$${claim.amount ? claim.amount.toLocaleString() : '0'}</td>
+                    <td class="p-3 font-bold ${scoreColor}">${claim.fraud_score.toFixed(0)}</td>
+                    <td class="p-3 text-xs">${claim.patterns.join(', ') || 'None'}</td>
+                    <td class="p-3">
+                        <span class="px-2 py-1 rounded-full text-xs font-semibold ${recColor}">
+                            ${claim.recommendation}
+                        </span>
+                    </td>
+                </tr>
+            `;
+        }).join('');
+
+        // Populate Pattern Details
+        const patternDetails = document.getElementById('patternDetails');
+        patternDetails.innerHTML = data.pattern_summary.map(pattern => {
+            const riskBadge = pattern.risk_level === 'CRITICAL' ? 'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-300' :
+                pattern.risk_level === 'HIGH' ? 'bg-orange-100 text-orange-800 dark:bg-orange-900/20 dark:text-orange-300' :
+                    pattern.risk_level === 'MEDIUM' ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-300' :
+                        'bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-300';
+
+            return `
+                <div class="bg-white/50 dark:bg-slate-800/50 rounded-lg p-4 border border-slate-200 dark:border-slate-700">
+                    <div class="flex items-center justify-between mb-2">
+                        <h4 class="font-bold text-slate-900 dark:text-white">${pattern.pattern_name}</h4>
+                        <div class="flex items-center gap-2">
+                            <span class="px-3 py-1 rounded-full text-xs font-semibold ${riskBadge}">
+                                ${pattern.risk_level} RISK
+                            </span>
+                            <span class="px-3 py-1 rounded-full text-xs font-semibold bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300">
+                                ${pattern.cases_found} Cases
+                            </span>
+                        </div>
+                    </div>
+                    <p class="text-sm text-slate-600 dark:text-slate-400">${pattern.description}</p>
+                </div>
+            `;
+        }).join('');
+    }
+</script>
+
+<style>
+    .animate-fade-in {
+        animation: fadeIn 0.3s ease-out;
+    }
+
+    @keyframes fadeIn {
+        from {
+            opacity: 0;
+            transform: translateY(10px);
+        }
+
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+</style>
+{% endblock %}
