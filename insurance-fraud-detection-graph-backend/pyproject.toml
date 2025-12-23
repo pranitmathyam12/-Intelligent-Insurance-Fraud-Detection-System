@@ -1,0 +1,21 @@
+[project]
+name = "insurance-fraud-detection-graph-backend"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+  "fastapi>=0.115",
+  "uvicorn[standard]>=0.30",
+  "pydantic>=2.7",
+  "pydantic-settings>=2.4",
+  "python-dotenv>=1.0",
+  "google-genai>=0.6",
+  "structlog>=24.1",
+  "prometheus-client>=0.20",
+  "python-multipart>=0.0.20",
+  "pypdf>=6.3.0",
+  "pandas>=2.3.3",
+  "neo4j>=6.0.3",
+  "snowflake>=1.9.0",
+]

@@ -1,0 +1,282 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<style>
+    .log-entry {
+        padding: 0.35rem 0.5rem;
+        margin-bottom: 0.25rem;
+        border-left: 3px solid rgba(148, 163, 184, 0.3);
+        font-family: 'JetBrains Mono', 'Courier New', monospace;
+        font-size: 0.75rem;
+    }
+</style>
+<div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+    <!-- Monitoring Metric Cards -->
+    <div class="glass-card rounded-2xl p-6">
+        <div class="flex items-center justify-between mb-4">
+            <div>
+                <h3 class="text-slate-500 dark:text-slate-400 text-sm font-medium">Tokens Used</h3>
+                <p class="text-xs text-slate-400 dark:text-slate-500">Total tokens processed</p>
+            </div>
+            <div class="w-10 h-10 rounded-xl bg-blue-500/10 text-blue-500 flex items-center justify-center">
+                <i class="fa-solid fa-layer-group"></i>
+            </div>
+        </div>
+        <h1 id="metric-tokens" class="text-3xl font-bold text-slate-900 dark:text-white tracking-tight">--</h1>
+    </div>
+
+    <div class="glass-card rounded-2xl p-6">
+        <div class="flex items-center justify-between mb-4">
+            <div>
+                <h3 class="text-slate-500 dark:text-slate-400 text-sm font-medium">API Cost</h3>
+                <p class="text-xs text-slate-400 dark:text-slate-500">Total USD spent</p>
+            </div>
+            <div class="w-10 h-10 rounded-xl bg-amber-500/10 text-amber-500 flex items-center justify-center">
+                <i class="fa-solid fa-wallet"></i>
+            </div>
+        </div>
+        <h1 id="metric-cost" class="text-3xl font-bold text-slate-900 dark:text-white tracking-tight">--</h1>
+    </div>
+
+    <div class="glass-card rounded-2xl p-6">
+        <div class="flex items-center justify-between mb-4">
+            <div>
+                <h3 class="text-slate-500 dark:text-slate-400 text-sm font-medium">Avg Processing Time</h3>
+                <p class="text-xs text-slate-400 dark:text-slate-500">Seconds per request</p>
+            </div>
+            <div class="w-10 h-10 rounded-xl bg-emerald-500/10 text-emerald-500 flex items-center justify-center">
+                <i class="fa-solid fa-clock"></i>
+            </div>
+        </div>
+        <h1 id="metric-time" class="text-3xl font-bold text-slate-900 dark:text-white tracking-tight">--</h1>
+    </div>
+
+    <div class="glass-card rounded-2xl p-6">
+        <div class="flex items-center justify-between mb-4">
+            <div>
+                <h3 class="text-slate-500 dark:text-slate-400 text-sm font-medium">API Calls</h3>
+                <p class="text-xs text-slate-400 dark:text-slate-500">Total requests handled</p>
+            </div>
+            <div class="w-10 h-10 rounded-xl bg-purple-500/10 text-purple-500 flex items-center justify-center">
+                <i class="fa-solid fa-diagram-project"></i>
+            </div>
+        </div>
+        <h1 id="metric-requests" class="text-3xl font-bold text-slate-900 dark:text-white tracking-tight">--</h1>
+    </div>
+</div>
+
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+    <!-- LLM Analytics -->
+    <div class="glass-card rounded-2xl p-6 lg:col-span-2">
+        <div class="flex items-center justify-between mb-6">
+            <div>
+                <h3 class="text-lg font-semibold text-slate-900 dark:text-white">LLM Token Usage & Cost</h3>
+                <p class="text-sm text-slate-500 dark:text-slate-400">Hourly aggregation from backend</p>
+            </div>
+            <select id="token-days" class="bg-slate-200 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 text-xs rounded-lg px-2 py-1 text-slate-700 dark:text-slate-300">
+                <option value="3">Last 3 days</option>
+                <option value="7" selected>Last 7 days</option>
+                <option value="14">Last 14 days</option>
+            </select>
+        </div>
+        <div class="h-72 w-full">
+            <canvas id="llmChart"></canvas>
+        </div>
+    </div>
+
+    <!-- Live Logs -->
+    <div class="glass-card rounded-2xl p-6 flex flex-col h-[400px]">
+        <div class="flex justify-between items-center mb-4">
+            <h3 class="text-lg font-semibold text-slate-900 dark:text-white">Live Logs</h3>
+            <div class="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
+                <span id="log-status-indicator" class="flex h-2 w-2 relative">
+                    <span class="absolute inline-flex h-full w-full rounded-full bg-slate-400 opacity-75"></span>
+                    <span class="relative inline-flex rounded-full h-2 w-2 bg-slate-500"></span>
+                </span>
+                <span id="log-status-text">Connecting...</span>
+            </div>
+        </div>
+        <div class="flex-grow bg-slate-100 dark:bg-slate-950/50 rounded-xl p-4 overflow-y-auto font-mono text-xs space-y-2 border border-slate-200 dark:border-slate-800"
+            id="log-container">
+            <div class="text-slate-500 dark:text-slate-400 text-center">Awaiting log stream...</div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Get theme-aware colors
+    const isDark = document.documentElement.classList.contains('dark');
+    const gridColor = isDark ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.05)';
+    const textColor = isDark ? '#94a3b8' : '#64748b';
+
+    const metricElements = {
+        tokens: document.getElementById('metric-tokens'),
+        cost: document.getElementById('metric-cost'),
+        time: document.getElementById('metric-time'),
+        requests: document.getElementById('metric-requests'),
+    };
+
+    async function fetchMetrics() {
+        try {
+            const resp = await fetch('/api/monitoring/metrics');
+            const data = await resp.json();
+            metricElements.tokens.innerText = data.tokens_used?.toLocaleString() ?? '--';
+            metricElements.cost.innerText = data.api_cost !== undefined ? `$${Number(data.api_cost).toFixed(2)}` : '--';
+            metricElements.time.innerText = data.avg_time !== undefined ? `${Number(data.avg_time).toFixed(2)}s` : '--';
+            metricElements.requests.innerText = data.total_requests?.toLocaleString() ?? '--';
+        } catch (err) {
+            console.error('Metrics fetch failed', err);
+        }
+    }
+
+    let llmChart = null;
+    const ctxLLM = document.getElementById('llmChart').getContext('2d');
+
+    function buildTokenUsageChart(labels, tokenData, costData) {
+        if (llmChart) {
+            llmChart.destroy();
+        }
+        llmChart = new Chart(ctxLLM, {
+            type: 'bar',
+            data: {
+                labels,
+                datasets: [{
+                    label: 'Tokens',
+                    data: tokenData,
+                    backgroundColor: '#38bdf8',
+                    yAxisID: 'y',
+                }, {
+                    label: 'Cost ($)',
+                    data: costData,
+                    borderColor: '#f59e0b',
+                    backgroundColor: '#f59e0b',
+                    type: 'line',
+                    yAxisID: 'y1',
+                    tension: 0.4,
+                    fill: false
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                interaction: { mode: 'index', intersect: false },
+                plugins: { legend: { labels: { color: textColor } } },
+                scales: {
+                    y: { position: 'left', grid: { color: gridColor }, ticks: { color: textColor } },
+                    y1: { position: 'right', grid: { display: false }, ticks: { color: textColor } },
+                    x: { grid: { display: false }, ticks: { color: textColor } }
+                }
+            }
+        });
+    }
+
+    async function fetchTokenUsage(days = 7) {
+        try {
+            const resp = await fetch(`/api/monitoring/token_usage?days=${days}`);
+            const data = await resp.json();
+            const labels = data.timeline?.map(point => point.timestamp) ?? [];
+            const tokens = data.timeline?.map(point => point.tokens) ?? [];
+            const costs = data.timeline?.map(point => point.cost) ?? [];
+            buildTokenUsageChart(labels, tokens, costs);
+        } catch (err) {
+            console.error('Token usage fetch failed', err);
+        }
+    }
+
+    const logContainer = document.getElementById('log-container');
+    const logStatusIndicator = document.getElementById('log-status-indicator');
+    const logStatusText = document.getElementById('log-status-text');
+    let lastLogCount = 0;
+
+    function setLogStatus(status) {
+        logStatusIndicator.querySelectorAll('span').forEach(span => 
+            span.classList.remove('bg-emerald-500', 'bg-emerald-400', 'bg-red-500', 'bg-red-400', 'bg-blue-500', 'bg-blue-400')
+        );
+        
+        if (status === 'connected') {
+            logStatusIndicator.firstElementChild.classList.add('bg-emerald-400');
+            logStatusIndicator.lastElementChild.classList.add('bg-emerald-500');
+            logStatusText.innerText = 'Live';
+        } else if (status === 'error') {
+            logStatusIndicator.firstElementChild.classList.add('bg-red-400');
+            logStatusIndicator.lastElementChild.classList.add('bg-red-500');
+            logStatusText.innerText = 'Error';
+        } else {
+            logStatusIndicator.firstElementChild.classList.add('bg-blue-400');
+            logStatusIndicator.lastElementChild.classList.add('bg-blue-500');
+            logStatusText.innerText = 'Loading...';
+        }
+    }
+
+    function addLogEntry(entry) {
+        const level = (entry.level || 'INFO').toUpperCase();
+        const levelColor = level === 'ERROR' ? 'text-red-500' : 
+                           level === 'WARN' ? 'text-yellow-500' : 
+                           level === 'DEBUG' ? 'text-blue-400' : 
+                           'text-emerald-500';
+        const timestampString = entry.timestamp ? entry.timestamp.replace(' ', 'T') : null;
+        let displayTime = new Date();
+        if (timestampString) {
+            const parsed = new Date(timestampString);
+            if (!isNaN(parsed.getTime())) {
+                displayTime = parsed;
+            }
+        }
+        const time = displayTime.toLocaleTimeString();
+
+        const logLine = document.createElement('div');
+        logLine.className = 'text-slate-500 dark:text-slate-400 log-entry';
+        logLine.innerHTML = `<span class="${levelColor}">[${level.padStart(5)}]</span> ${time} - ${entry.message || ''} <span class="text-slate-400 text-xs">${entry.location || ''}</span>`;
+        
+        return logLine;
+    }
+
+    let lastLogTimestamp = null;
+
+    async function fetchLogs() {
+        try {
+            setLogStatus('loading');
+            const resp = await fetch('/api/monitoring/logs?limit=50');
+            const data = await resp.json();
+            
+            if (data.logs && data.logs.length > 0) {
+                // Clear "Awaiting log stream..." message on first load
+                if (logContainer.firstElementChild && logContainer.firstElementChild.innerText.includes('Awaiting log stream')) {
+                    logContainer.innerHTML = '';
+                }
+                
+                // Get the timestamp of the latest log
+                const latestTimestamp = data.logs[data.logs.length - 1].timestamp;
+                
+                // Update if this is the first load OR if we have new logs
+                if (lastLogTimestamp === null || latestTimestamp !== lastLogTimestamp) {
+                    logContainer.innerHTML = '';
+                    data.logs.forEach(entry => {
+                        logContainer.appendChild(addLogEntry(entry));
+                    });
+                    
+                    lastLogTimestamp = latestTimestamp;
+                    
+                    // Auto-scroll to bottom
+                    logContainer.scrollTop = logContainer.scrollHeight;
+                }
+                
+                setLogStatus('connected');
+            }
+        } catch (err) {
+            console.error('Failed to fetch logs', err);
+            setLogStatus('error');
+        }
+    }
+
+    document.getElementById('token-days').addEventListener('change', (e) => {
+        fetchTokenUsage(e.target.value);
+    });
+
+    fetchMetrics();
+    fetchTokenUsage(7);
+    fetchLogs();
+    setInterval(fetchLogs, 3000);
+</script>
+{% endblock %}

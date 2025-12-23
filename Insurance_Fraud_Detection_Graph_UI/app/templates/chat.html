@@ -1,0 +1,351 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="max-w-5xl mx-auto h-[calc(100vh-140px)] flex flex-col">
+    <!-- Chat Header -->
+    <div
+        class="glass-panel rounded-t-2xl p-4 border-b border-black/5 dark:border-white/5 flex items-center justify-between flex-wrap gap-4">
+        <div class="flex items-center gap-3">
+            <div
+                class="w-10 h-10 rounded-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center">
+                <i class="fa-solid fa-robot text-white"></i>
+            </div>
+            <div>
+                <h2 class="font-semibold text-slate-900 dark:text-white">Graph Assistant</h2>
+                <p class="text-xs text-emerald-500 dark:text-emerald-400 flex items-center gap-1"><span
+                        class="w-1.5 h-1.5 rounded-full bg-emerald-500 dark:bg-emerald-400"></span> Online</p>
+            </div>
+        </div>
+        <div class="flex items-center gap-4">
+            <div class="flex items-center bg-slate-100 dark:bg-slate-900/50 rounded-xl p-1 text-xs font-medium">
+                <button id="mode-graph" class="mode-toggle px-3 py-2 rounded-lg text-slate-600 dark:text-slate-300"
+                    onclick="switchMode('graph')">
+                    <i class="fa-solid fa-sitemap mr-1"></i> Graph Chat
+                </button>
+                <button id="mode-rag" class="mode-toggle px-3 py-2 rounded-lg text-slate-600 dark:text-slate-300"
+                    onclick="switchMode('rag')">
+                    <i class="fa-solid fa-file-lines mr-1"></i> Document Chat
+                </button>
+            </div>
+            <button class="text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white" title="Reset Chat" onclick="resetChat()"><i
+                    class="fa-solid fa-rotate-right"></i></button>
+        </div>
+    </div>
+
+    <!-- Chat Messages -->
+    <div class="glass-card flex-grow overflow-y-auto p-6 space-y-6 bg-slate-100/50 dark:bg-slate-900/20 backdrop-blur-sm"
+        id="chat-container">
+        <!-- Bot Welcome -->
+        <div class="flex gap-4">
+            <div
+                class="w-8 h-8 rounded-full bg-purple-500/10 dark:bg-purple-500/20 flex items-center justify-center flex-shrink-0 border border-purple-500/30">
+                <i class="fa-solid fa-robot text-purple-500 dark:text-purple-400 text-xs"></i>
+            </div>
+            <div
+                class="bg-white dark:bg-slate-800/80 border border-black/5 dark:border-white/5 rounded-2xl rounded-tl-none p-4 max-w-[80%] text-slate-700 dark:text-slate-200 text-sm shadow-lg">
+                <p>Hello! I'm your Fraud Detection Assistant. I can help with both Graph intelligence and Document insights. Toggle the mode and hover over the categories below to see suggested questions.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Input Area -->
+        <div class="glass-panel rounded-b-2xl p-4 border-t border-black/5 dark:border-white/5 space-y-4">
+        <div id="suggestion-container" class="flex flex-col gap-3"></div>
+        <form id="chat-form" class="relative">
+            <input type="text" id="chat-input" placeholder="Ask a question about the claims graph..."
+                class="w-full bg-slate-100 dark:bg-slate-900/50 border border-slate-300 dark:border-slate-700 rounded-xl pl-4 pr-12 py-3.5 text-sm text-slate-900 dark:text-white placeholder:text-slate-500 dark:placeholder:text-slate-400 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none transition-all">
+            <button type="submit"
+                class="absolute right-2 top-1/2 transform -translate-y-1/2 w-9 h-9 rounded-lg bg-blue-600 hover:bg-blue-500 flex items-center justify-center text-white transition-colors">
+                <i class="fa-solid fa-paper-plane text-xs"></i>
+            </button>
+        </form>
+    </div>
+</div>
+
+<script>
+    const CHAT_MODES = {
+        graph: 'graph',
+        rag: 'rag'
+    };
+    const SUGGESTION_SETS = {
+        rag: [
+            {
+                title: 'Claim Identification',
+                items: [
+                    "What is the agent ID for claim TXN55500001?",
+                    "When was claim TXN55500001 filed?",
+                ]
+            },
+            {
+                title: 'Locations & Summaries',
+                items: [
+                    "Where did incident TXN55500001 occur?",
+                    "What are the customer name and claim amount for TXN55500001?"
+                ]
+            },
+            {
+                title: 'Fraud & Amount Analysis',
+                items: [
+                    "What is the amount and when was the claim filed for TXN55500001?",
+                    "How much is the claim amount for TXN55500001?",
+                ]
+            }
+        ],
+        graph: [
+            {
+                title: 'Fraud & Risk Detection',
+                items: [
+                    "Get me the details of potential fraud rings linked to claim TXN00000001",
+                    "Check for collusion between Agent AGENT00413 and Vendor VNDR00556"
+                ]
+            },
+            {
+                title: 'Customer & Network Analysis',
+                items: [
+                    "How many claims were filed by Christopher Demarest?",
+                    "Who filed claim TXN00000001?"
+                ]
+            },
+            {
+                title: 'Claim Statistics',
+                items: [
+                    "What is the claim amount for TXN00000002?",
+                    "What is the average claim amount?"
+                ]
+            }
+        ]
+    };
+
+    let currentMode = CHAT_MODES.graph;
+
+    const chatContainer = document.getElementById('chat-container');
+    const chatForm = document.getElementById('chat-form');
+    const chatInput = document.getElementById('chat-input');
+    const suggestionContainer = document.getElementById('suggestion-container');
+
+    let chatSessionId = null;
+
+    function renderSuggestions() {
+        const sections = SUGGESTION_SETS[currentMode] || [];
+        const html = sections.map(section => `
+            <div class="suggestion-group bg-slate-100/60 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-800 rounded-2xl px-4 py-3 transition-all duration-300">
+                <div class="flex items-center justify-between text-xs uppercase tracking-wide text-slate-500 dark:text-slate-400 cursor-pointer suggestion-header">
+                    <span>${section.title}</span>
+                    <i class="fa-solid fa-chevron-down transition-transform duration-300 text-slate-400 text-[10px]"></i>
+                </div>
+                <div class="suggestion-dropdown max-h-0 overflow-hidden transition-all duration-300">
+                    <div class="flex flex-wrap gap-2 mt-3">
+                        ${section.items.map(item => `
+                            <button class="suggestion-chip px-3 py-1.5 rounded-full bg-blue-500/10 border border-blue-500/20 text-blue-600 dark:text-blue-400 text-xs hover:bg-blue-500/20 transition-colors"
+                                data-question="${encodeURIComponent(item)}">
+                                ${item}
+                            </button>
+                        `).join('')}
+                    </div>
+                </div>
+            </div>
+        `).join('');
+        suggestionContainer.innerHTML = html || '<p class="text-xs text-slate-500 dark:text-slate-400">No suggestions for this mode yet.</p>';
+
+        const groups = suggestionContainer.querySelectorAll('.suggestion-group');
+        groups.forEach((group, index) => {
+            const header = group.querySelector('.suggestion-header');
+            const dropdown = group.querySelector('.suggestion-dropdown');
+            const icon = header.querySelector('i');
+
+            const openGroup = () => {
+                groups.forEach(g => {
+                    const drop = g.querySelector('.suggestion-dropdown');
+                    const ic = g.querySelector('.suggestion-header i');
+                    if (g === group) {
+                        drop.style.maxHeight = `${drop.scrollHeight + 24}px`;
+                        g.classList.add('bg-white', 'dark:bg-slate-900');
+                        ic.classList.add('rotate-180');
+                    } else {
+                        drop.style.maxHeight = '0px';
+                        g.classList.remove('bg-white', 'dark:bg-slate-900');
+                        g.querySelector('.suggestion-header i').classList.remove('rotate-180');
+                    }
+                });
+            };
+
+            group.addEventListener('mouseenter', openGroup);
+            group.addEventListener('mouseleave', () => {
+                dropdown.style.maxHeight = '0px';
+                group.classList.remove('bg-white', 'dark:bg-slate-900');
+                icon.classList.remove('rotate-180');
+            });
+
+            dropdown.querySelectorAll('button[data-question]').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    chatInput.value = decodeURIComponent(btn.dataset.question);
+                    chatInput.focus();
+                });
+            });
+        });
+    }
+
+    function switchMode(mode) {
+        currentMode = mode === 'graph' ? CHAT_MODES.graph : CHAT_MODES.rag;
+        chatContainer.insertAdjacentHTML('beforeend', `<div class="text-center text-xs text-slate-500 dark:text-slate-400">Switched to ${currentMode === CHAT_MODES.graph ? 'Graph' : 'Document'} chat.</div>`);
+        updateModeButtons();
+        renderSuggestions();
+        chatContainer.scrollTop = chatContainer.scrollHeight;
+    }
+
+    function updateModeButtons() {
+        const graphBtn = document.getElementById('mode-graph');
+        const ragBtn = document.getElementById('mode-rag');
+        graphBtn.classList.remove('bg-blue-600', 'text-white');
+        ragBtn.classList.remove('bg-blue-600', 'text-white');
+        if (currentMode === CHAT_MODES.graph) {
+            graphBtn.classList.add('bg-blue-600', 'text-white');
+            ragBtn.classList.remove('bg-blue-600', 'text-white');
+        } else {
+            ragBtn.classList.add('bg-blue-600', 'text-white');
+            graphBtn.classList.remove('bg-blue-600', 'text-white');
+        }
+    }
+
+    function resetChat() {
+        chatSessionId = null;
+        const welcome = chatContainer.firstElementChild ? chatContainer.firstElementChild.cloneNode(true) : null;
+        chatContainer.innerHTML = '';
+        if (welcome) {
+            chatContainer.appendChild(welcome);
+        }
+        chatContainer.insertAdjacentHTML('beforeend', `<div class="text-center text-xs text-slate-500 dark:text-slate-400">Chat cleared. Starting a new session.</div>`);
+        chatContainer.scrollTop = chatContainer.scrollHeight;
+    }
+
+    function sanitizeText(text) {
+        const div = document.createElement('div');
+        div.innerText = text;
+        return div.innerHTML;
+    }
+
+    function appendMessage(role, content, isHtml = false) {
+        const isUser = role === 'user';
+        const isDark = document.documentElement.classList.contains('dark');
+        const userBg = isDark ? 'bg-blue-600/20 border-blue-500/20' : 'bg-blue-100 border-blue-300/50';
+        const botBg = isDark ? 'bg-slate-800/80 border-white/5' : 'bg-white border-black/5';
+        const textColor = isDark ? 'text-slate-200' : 'text-slate-700';
+        const bodyContent = isHtml ? content : `<p>${sanitizeText(content)}</p>`;
+
+        const html = `
+            <div class="flex gap-4 ${isUser ? 'flex-row-reverse' : ''}">
+                <div class="w-8 h-8 rounded-full ${isUser ? 'bg-blue-500/10 dark:bg-blue-500/20 border-blue-500/30' : 'bg-purple-500/10 dark:bg-purple-500/20 border-purple-500/30'} flex items-center justify-center flex-shrink-0 border">
+                    <i class="fa-solid ${isUser ? 'fa-user text-blue-600 dark:text-blue-400' : 'fa-robot text-purple-500 dark:text-purple-400'} text-xs"></i>
+                </div>
+                <div class="${isUser ? userBg : botBg} border rounded-2xl ${isUser ? 'rounded-tr-none' : 'rounded-tl-none'} p-4 max-w-[80%] ${textColor} text-sm shadow-lg space-y-3">
+                    ${bodyContent}
+                </div>
+            </div>
+        `;
+        chatContainer.insertAdjacentHTML('beforeend', html);
+        chatContainer.scrollTop = chatContainer.scrollHeight;
+    }
+
+    function buildBotResponseContent(data) {
+        const answer = data.answer || data.response || "I'm not sure how to answer that yet.";
+        let html = `<p>${sanitizeText(answer)}</p>`;
+
+        if (currentMode === CHAT_MODES.graph && data.cypher_query) {
+            html += `
+                <div class="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-xl p-3 text-xs text-blue-700 dark:text-blue-300 font-mono">
+                    <p class="uppercase tracking-wide text-[10px] text-blue-500 dark:text-blue-400 mb-1">Cypher Query</p>
+                    <pre class="whitespace-pre-wrap">${sanitizeText(data.cypher_query)}</pre>
+                </div>
+            `;
+        }
+
+        if (currentMode === CHAT_MODES.graph && data.result_summary) {
+            html += `
+                <div class="bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-800 rounded-xl p-3 text-xs text-purple-700 dark:text-purple-300">
+                    <p>${sanitizeText(data.result_summary)}</p>
+                </div>
+            `;
+        }
+
+        if (currentMode === CHAT_MODES.rag && data.citations && data.citations.length > 0) {
+            html += `
+                <div class="bg-slate-100 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-800 rounded-xl p-3 text-xs">
+                    <p class="text-slate-500 dark:text-slate-400 uppercase tracking-wide mb-2">Citations</p>
+                    <ul class="space-y-1 text-slate-600 dark:text-slate-300">
+                        ${data.citations.map(c => `<li>• ${sanitizeText(c.text || '')} <span class="text-[10px] uppercase tracking-wide text-slate-400">(${sanitizeText(c.document || 'document')})</span></li>`).join('')}
+                    </ul>
+                </div>
+            `;
+        }
+
+        if (data.usage || data.query_time_ms || data.model) {
+            html += `
+                <div class="flex flex-wrap gap-3 text-[10px] text-slate-500 dark:text-slate-400">
+                    ${data.model ? `<span class="px-2 py-1 bg-slate-200/50 dark:bg-slate-800/50 rounded-full">Model: ${sanitizeText(data.model)}</span>` : ''}
+                    ${data.query_time_ms ? `<span class="px-2 py-1 bg-slate-200/50 dark:bg-slate-800/50 rounded-full">Latency: ${(data.query_time_ms / 1000).toFixed(2)}s</span>` : ''}
+                    ${data.usage ? `<span class="px-2 py-1 bg-slate-200/50 dark:bg-slate-800/50 rounded-full">Tokens: ${data.usage.total_token_count || 0}</span>` : ''}
+                </div>
+            `;
+        }
+
+        if (data.success === false && data.error) {
+            html += `<p class="text-xs text-red-500">Error: ${sanitizeText(data.error)}</p>`;
+        }
+
+        return html;
+    }
+
+    async function handleSubmit(e) {
+        e.preventDefault();
+        const msg = chatInput.value.trim();
+        if (!msg) return;
+
+        // User Msg
+        appendMessage('user', msg);
+        chatInput.value = '';
+
+        // Loading State
+        const loadingId = 'loading-' + Date.now();
+        const isDark = document.documentElement.classList.contains('dark');
+        const botBg = isDark ? 'bg-slate-800/80 border-white/5' : 'bg-white border-black/5';
+        const textColor = isDark ? 'text-slate-400' : 'text-slate-500';
+
+        const loadingHtml = `
+            <div id="${loadingId}" class="flex gap-4">
+                <div class="w-8 h-8 rounded-full bg-purple-500/10 dark:bg-purple-500/20 flex items-center justify-center flex-shrink-0 border border-purple-500/30">
+                    <i class="fa-solid fa-robot text-purple-500 dark:text-purple-400 text-xs"></i>
+                </div>
+                <div class="${botBg} border rounded-2xl rounded-tl-none p-4 ${textColor} text-sm">
+                    <i class="fa-solid fa-circle-notch fa-spin"></i> Thinking...
+                </div>
+            </div>
+        `;
+        chatContainer.insertAdjacentHTML('beforeend', loadingHtml);
+        chatContainer.scrollTop = chatContainer.scrollHeight;
+
+        // API Call
+        try {
+            const res = await fetch('/api/chat', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ message: msg, session_id: chatSessionId, include_history: true, mode: currentMode })
+            });
+            const data = await res.json();
+
+            // Remove loading
+            document.getElementById(loadingId).remove();
+            if (data.session_id) {
+                chatSessionId = data.session_id;
+            }
+            appendMessage('bot', buildBotResponseContent(data), true);
+        } catch (err) {
+            document.getElementById(loadingId).remove();
+            appendMessage('bot', "Sorry, I encountered an error connecting to the backend.");
+        }
+    }
+
+    chatForm.addEventListener('submit', handleSubmit);
+    updateModeButtons();
+    renderSuggestions();
+</script>
+{% endblock %}

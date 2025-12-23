@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FraudGuard AI</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    },
+                    colors: {
+                        glass: "rgba(255, 255, 255, 0.05)",
+                        glassBorder: "rgba(255, 255, 255, 0.1)",
+                        primary: "#38bdf8",
+                        secondary: "#a855f7",
+                    }
+                }
+            }
+        }
+    </script>
+    <script>
+        // Immediately apply theme to avoid flash
+        if (localStorage.getItem('theme') === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+            document.documentElement.classList.add('dark');
+        } else {
+            document.documentElement.classList.remove('dark');
+        }
+    </script>
+    <style>
+        /* Glassmorphism Utilities */
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.85);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(0, 0, 0, 0.08);
+            box-shadow: 0 4px 30px rgba(0, 0, 0, 0.08);
+        }
+
+        .dark .glass-panel {
+            background: rgba(15, 23, 42, 0.6);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
+        }
+
+        .glass-card {
+            background: rgba(255, 255, 255, 0.7);
+            backdrop-filter: blur(8px);
+            border: 1px solid rgba(0, 0, 0, 0.08);
+            transition: transform 0.2s, border-color 0.2s;
+        }
+
+        .dark .glass-card {
+            background: rgba(30, 41, 59, 0.4);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .glass-card:hover {
+            border-color: rgba(56, 189, 248, 0.5);
+            transform: translateY(-2px);
+        }
+
+        /* Navigation Active State */
+        .nav-link.active {
+            background: rgba(56, 189, 248, 0.15);
+            color: #0ea5e9;
+            border: 1px solid rgba(56, 189, 248, 0.3);
+        }
+
+        .dark .nav-link.active {
+            color: #38bdf8;
+        }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+
+        .dark ::-webkit-scrollbar-track {
+            background: #0f172a;
+        }
+
+        .dark ::-webkit-scrollbar-thumb {
+            background: #334155;
+        }
+
+        .dark ::-webkit-scrollbar-thumb:hover {
+            background: #475569;
+        }
+    </style>
+</head>
+
+<body
+    class="min-h-screen flex flex-col bg-gray-50 text-gray-900 dark:bg-[#020617] dark:text-[#f8fafc] transition-colors duration-300 bg-[radial-gradient(at_0%_0%,_rgba(56,189,248,0.08)_0px,_transparent_50%),_radial-gradient(at_100%_0%,_rgba(168,85,247,0.08)_0px,_transparent_50%)] dark:bg-[radial-gradient(at_0%_0%,_rgba(56,189,248,0.15)_0px,_transparent_50%),_radial-gradient(at_100%_0%,_rgba(168,85,247,0.15)_0px,_transparent_50%)] bg-fixed">
+
+    <!-- Navbar -->
+    <nav class="fixed top-4 left-1/2 transform -translate-x-1/2 w-[95%] max-w-6xl z-50">
+        <div class="glass-panel rounded-full px-6 py-3 flex items-center justify-between relative">
+            <!-- Logo -->
+            <div class="flex items-center gap-3">
+                <div
+                    class="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center shadow-lg shadow-blue-500/20">
+                    <i class="fa-solid fa-shield-halved text-white text-sm"></i>
+                </div>
+                <span class="font-bold text-lg tracking-tight text-gray-900 dark:text-white">FraudGuard<span
+                        class="text-blue-500 dark:text-primary">AI</span></span>
+            </div>
+
+            <!-- Desktop Navigation Links -->
+            <div
+                class="hidden md:flex items-center gap-2 bg-gray-200/70 dark:bg-slate-800/50 rounded-full p-1 border border-gray-300/50 dark:border-white/5">
+                <a href="/"
+                    class="nav-link px-4 py-1.5 rounded-full text-sm font-medium text-gray-700 dark:text-slate-400 hover:text-gray-900 dark:hover:text-white transition-all {{ 'active' if page == 'dashboard' else '' }}">Dashboard</a>
+                <a href="/upload"
+                    class="nav-link px-4 py-1.5 rounded-full text-sm font-medium text-gray-700 dark:text-slate-400 hover:text-gray-900 dark:hover:text-white transition-all {{ 'active' if page == 'upload' else '' }}">Upload
+                    & Detect</a>
+                <a href="/chat"
+                    class="nav-link px-4 py-1.5 rounded-full text-sm font-medium text-gray-700 dark:text-slate-400 hover:text-gray-900 dark:hover:text-white transition-all {{ 'active' if page == 'chat' else '' }}">Chatbot</a>
+                <a href="/monitoring"
+                    class="nav-link px-4 py-1.5 rounded-full text-sm font-medium text-gray-700 dark:text-slate-400 hover:text-gray-900 dark:hover:text-white transition-all {{ 'active' if page == 'monitoring' else '' }}">Monitoring</a>
+                <a href="/evaluation"
+                    class="nav-link px-4 py-1.5 rounded-full text-sm font-medium text-gray-700 dark:text-slate-400 hover:text-gray-900 dark:hover:text-white transition-all {{ 'active' if page == 'evaluation' else '' }}">Evaluation</a>
+            </div>
+
+            <!-- Right Actions -->
+            <div class="flex items-center gap-3">
+                <button id="theme-toggle"
+                    class="w-8 h-8 rounded-full bg-gray-200 dark:bg-white/5 hover:bg-gray-300 dark:hover:bg-white/10 flex items-center justify-center transition-colors border border-gray-300 dark:border-white/5">
+                    <i class="fa-solid fa-sun text-amber-500 dark:text-slate-400"></i>
+                </button>
+
+                <!-- Mobile Menu Button -->
+                <button id="mobile-menu-btn"
+                    class="md:hidden w-8 h-8 rounded-full bg-gray-200 dark:bg-white/5 hover:bg-gray-300 dark:hover:bg-white/10 flex items-center justify-center transition-colors border border-gray-300 dark:border-white/5">
+                    <i class="fa-solid fa-bars text-gray-700 dark:text-slate-400"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- Mobile Menu Dropdown -->
+        <div id="mobile-menu"
+            class="hidden absolute top-full left-0 w-full mt-2 glass-panel rounded-2xl p-4 flex flex-col gap-2 md:hidden transform origin-top transition-all duration-200">
+            <a href="/"
+                class="px-4 py-3 rounded-xl text-sm font-medium text-gray-700 dark:text-slate-400 hover:bg-gray-200 dark:hover:bg-white/5 hover:text-gray-900 dark:hover:text-white transition-all {{ 'active' if page == 'dashboard' else '' }}">
+                <i class="fa-solid fa-chart-line w-6"></i> Dashboard
+            </a>
+            <a href="/upload"
+                class="px-4 py-3 rounded-xl text-sm font-medium text-gray-700 dark:text-slate-400 hover:bg-gray-200 dark:hover:bg-white/5 hover:text-gray-900 dark:hover:text-white transition-all {{ 'active' if page == 'upload' else '' }}">
+                <i class="fa-solid fa-cloud-arrow-up w-6"></i> Upload & Detect
+            </a>
+            <a href="/chat"
+                class="px-4 py-3 rounded-xl text-sm font-medium text-gray-700 dark:text-slate-400 hover:bg-gray-200 dark:hover:bg-white/5 hover:text-gray-900 dark:hover:text-white transition-all {{ 'active' if page == 'chat' else '' }}">
+                <i class="fa-solid fa-robot w-6"></i> Chatbot
+            </a>
+            <a href="/monitoring"
+                class="px-4 py-3 rounded-xl text-sm font-medium text-gray-700 dark:text-slate-400 hover:bg-gray-200 dark:hover:bg-white/5 hover:text-gray-900 dark:hover:text-white transition-all {{ 'active' if page == 'monitoring' else '' }}">
+                <i class="fa-solid fa-chart-pulse w-6"></i> Monitoring
+            </a>
+            <a href="/evaluation"
+                class="px-4 py-3 rounded-xl text-sm font-medium text-gray-700 dark:text-slate-400 hover:bg-gray-200 dark:hover:bg-white/5 hover:text-gray-900 dark:hover:text-white transition-all {{ 'active' if page == 'evaluation' else '' }}">
+                <i class="fa-solid fa-check-double w-6"></i> Evaluation
+            </a>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="flex-grow pt-28 pb-10 px-4 max-w-7xl mx-auto w-full">
+        {% block content %}{% endblock %}
+    </main>
+
+    <script>
+        // Theme Toggle Logic
+        const themeToggle = document.getElementById('theme-toggle');
+        const html = document.documentElement;
+        const icon = themeToggle.querySelector('i');
+
+        // Initialize based on current class (which was set by head script)
+        function updateIcon() {
+            if (html.classList.contains('dark')) {
+                icon.className = 'fa-solid fa-sun text-slate-400';
+            } else {
+                icon.className = 'fa-solid fa-moon text-gray-700';
+            }
+        }
+        updateIcon();
+
+        themeToggle.addEventListener('click', () => {
+            if (html.classList.contains('dark')) {
+                html.classList.remove('dark');
+                localStorage.setItem('theme', 'light');
+            } else {
+                html.classList.add('dark');
+                localStorage.setItem('theme', 'dark');
+            }
+            updateIcon();
+        });
+
+        // Mobile Menu Logic
+        const mobileMenuBtn = document.getElementById('mobile-menu-btn');
+        const mobileMenu = document.getElementById('mobile-menu');
+
+        mobileMenuBtn.addEventListener('click', () => {
+            mobileMenu.classList.toggle('hidden');
+            const icon = mobileMenuBtn.querySelector('i');
+            if (mobileMenu.classList.contains('hidden')) {
+                icon.classList.remove('fa-xmark');
+                icon.classList.add('fa-bars');
+            } else {
+                icon.classList.remove('fa-bars');
+                icon.classList.add('fa-xmark');
+            }
+        });
+
+        // Close mobile menu when clicking outside
+        document.addEventListener('click', (e) => {
+            if (!mobileMenu.contains(e.target) && !mobileMenuBtn.contains(e.target)) {
+                mobileMenu.classList.add('hidden');
+                mobileMenuBtn.querySelector('i').classList.remove('fa-xmark');
+                mobileMenuBtn.querySelector('i').classList.add('fa-bars');
+            }
+        });
+    </script>
+</body>
+
+</html>

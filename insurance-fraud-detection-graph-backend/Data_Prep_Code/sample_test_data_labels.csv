@@ -1,0 +1,13 @@
+TRANSACTION_ID,IS_FRAUD,FRAUD_REASON,NOTES
+TXN55500001,TRUE,Shared SSN,"Uses SSN '087-11-1946' which belongs to Christopher Demarest (A00003822) from transaction TXN00000001 in the enriched database. This triggers the SHARED_PII fraud pattern."
+TXN55500002,FALSE,None,"Clean Health claim from Jennifer Martinez in Tucson. New customer with no prior claims, valid SSN, reasonable claim amount."
+TXN55500003,TRUE,Asset Recycling,"Uses VIN 'RJ58C80HSCY3SL186' which was already claimed by Maryalice Martinez (A00004301) in transaction TXN00000008 from the enriched database. This VIN appears in multiple claims, triggering asset recycling fraud."
+TXN55500004,FALSE,None,"Clean Motor claim from Robert Williams in Atlanta. New customer, unique VIN, reasonable claim amount and circumstances."
+TXN55500005,TRUE,High Value,"Life insurance claim for $185,000 which exceeds the $50,000 high-value threshold. Triggers high-value fraud pattern due to the large payout amount."
+TXN55500006,FALSE,None,"Clean Life claim from Linda Garcia in Seattle. Claim amount $55,000 is reasonable, proper documentation, accident death with valid beneficiary."
+TXN55500007,TRUE,Velocity Fraud,"Filed by Nicholas Hamilton (A00004671) who already has a motor claim (TXN00000009) in the enriched database. Multiple claims from same customer triggers velocity fraud pattern."
+TXN55500008,FALSE,None,"Clean Mobile claim from Amanda Chen in San Francisco. New customer, lost device claim with proper documentation and receipt."
+TXN55500009,TRUE,Double Dipping,"Filed by Ricardo Gatlin (A00008149) who already has transaction TXN00000002 in the enriched database for the same property address with similar fire damage claim. This is a duplicate claim attempt."
+TXN55500010,FALSE,None,"Clean Property claim from Michelle Davis in Denver. Water damage claim with reasonable amount, proper documentation, no prior claims."
+TXN55500011,TRUE,Velocity Fraud,"Filed by Jason Rodriguez (A00008173) who already has a travel claim (TXN00000005) in the enriched database. Multiple claims by same customer within short timeframe triggers velocity fraud."
+TXN55500012,FALSE,None,"Clean Travel claim from Sarah Johnson in Chicago. Baggage loss claim, reasonable amount, proper flight documentation, no red flags."
